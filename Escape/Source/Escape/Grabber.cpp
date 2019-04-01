@@ -26,15 +26,27 @@ void UGrabber::BeginPlay()
 void UGrabber::Grab(){
 	UE_LOG(LogTemp, Warning, TEXT("Grab pressed!"));
 
-	// LINE TRACE and see if we reach any actors with physics body collision channel set
-	GetFirstPhysicsBodyInReach();
+	/// LINE TRACE and see if we reach any actors with physics body collision channel set
+	auto HitResult = GetFirstPhysicsBodyInReach();
+	auto ComponentToGrab = HitResult.GetComponent();
+	auto ActorHit = HitResult.GetActor();
+
 	// if we hit something then attach a physics handle
-	// TODO attach physics handle
+	if(ActorHit){
+		// attach physics handle
+		PhysicsHandle->GrabComponent(
+			ComponentToGrab,
+			NAME_None, // bone name (none)
+			ComponentToGrab->GetOwner()->GetActorLocation(),
+			true // allow rotation
+		);
+	}
 }
 
 void UGrabber::Release(){
 	UE_LOG(LogTemp, Warning, TEXT("Grab released!"));
 	// TODO release physics handle
+	PhysicsHandle->ReleaseComponent();
 }
 
 /// Look for attached physics handle
@@ -59,7 +71,7 @@ void UGrabber::SetupInputComponent(){
 	}
 }
 
-void UGrabber::GetFirstPhysicsBodyInReach(){
+const FHitResult UGrabber::GetFirstPhysicsBodyInReach(){
 	/// Get player viewpoint
 	FVector PlayerViewPointLocation;
 	FRotator PlayerViewPointRotation;
@@ -104,14 +116,33 @@ void UGrabber::GetFirstPhysicsBodyInReach(){
 	if(ActorHit){
 		UE_LOG(LogTemp, Warning, TEXT("Hitting: %s"), *(ActorHit->GetName()));
 	}
+
+	return Hit;
 }
 // Called every frame
 void UGrabber::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	FVector PlayerViewPointLocation;
+	FRotator PlayerViewPointRotation;
+	GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(
+		OUT PlayerViewPointLocation, 
+		OUT PlayerViewPointRotation
+	);
+	/*UE_LOG(LogTemp,Warning,TEXT("Location: %s, Rotation: %s"), 
+		*PlayerViewPointLocation.ToString(), 
+		*PlayerViewPointRotator.ToString()
+	);*/
+
+	FVector LineTraceDirection = PlayerViewPointRotation.Vector();
+	FVector LineTraceEnd = PlayerViewPointLocation + LineTraceDirection * Reach;
+
 	// if the physics handle is attached
+	if(PhysicsHandle->GrabbedComponent){
 		// move the object we are holding
+		PhysicsHandle->SetTargetLocation(LineTraceEnd);
+	}
 	
 
 	
